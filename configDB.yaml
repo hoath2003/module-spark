@@ -4,3 +4,7 @@ postgres:
   password: postgres
   host: localhost
   port: 5432
+
+table:
+  name: accounts
+  schema: public
