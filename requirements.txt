@@ -1,3 +1,7 @@
 pyspark
-psycopg2-binary
-pyyaml 
+pyyaml
+# JDBC drivers for different databases
+# postgresql-jdbc (included with pyspark)
+# mysql-connector-java (for MySQL)
+# ojdbc8 (for Oracle)
+# mssql-jdbc (for SQL Server) 

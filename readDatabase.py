@@ -1,37 +1,34 @@
-# readDatabase.py - Provides function to load a PostgreSQL table into a Spark DataFrame using a custom schema
-
-from pyspark.sql import SparkSession, DataFrame
-from buildSparkSchema import buildSparkSchema
-from getTableSchema import getTableSchema
-
-def readDatabase(spark: SparkSession, config: dict) -> DataFrame:
+def readDatabase(spark, jdbc_url, connection_properties, table_config, query=None, spark_schema=None):
     """
-    Read a PostgreSQL table into a Spark DataFrame using JDBC and schema from Postgres.
+    Read data from the database using Spark JDBC.
     Args:
-        spark (SparkSession): Active Spark session.
-        config (dict): Loaded config with PostgreSQL connection info.
+        spark: SparkSession
+        jdbc_url: JDBC connection URL
+        connection_properties: dict with connection properties
+        table_config: dict with table configuration
+        query: optional custom SQL query
+        spark_schema: optional Spark schema
     Returns:
-        DataFrame: Spark DataFrame loaded from PostgreSQL.
+        DataFrame: Spark DataFrame with the data
     """
-    # Extract connection and table info from config
-    pg_conf = config["postgres"]
-    table_name = config["table"]["name"]
-    schema_name = config["table"]["schema"]
+    schema_name = table_config.get('schema', 'public')
+    table_name = table_config['name']
     
-    try:
-        # Get schema from PostgreSQL and build Spark schema
-        getSchema = getTableSchema(config)
-        spark_schema = buildSparkSchema(getSchema)
-        
-        # Read table from PostgreSQL using JDBC
-        return spark.read \
-            .format("jdbc") \
-            .option("url", f"jdbc:postgresql://{pg_conf['host']}:{pg_conf['port']}/{pg_conf['dbname']}") \
-            .option("dbtable", f"{schema_name}.{table_name}") \
-            .option("user", pg_conf["user"]) \
-            .option("password", pg_conf["password"]) \
-            .schema(spark_schema) \
-            .load()
-    except Exception as e:
-        print(f"Error reading database: {e}")
-        raise
+    if query:
+        # If a custom query is provided
+        dbtable = f"({query}) as custom_query"
+    else:
+        # Read the entire table
+        dbtable = f"{schema_name}.{table_name}"
+    
+    df = spark.read \
+        .format("jdbc") \
+        .option("url", jdbc_url) \
+        .option("dbtable", dbtable) \
+        .option("user", connection_properties['user']) \
+        .option("password", connection_properties['password']) \
+        .option("driver", connection_properties['driver']) \
+        .schema(spark_schema) \
+        .load()
+    
+    return df

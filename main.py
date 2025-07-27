@@ -1,38 +1,79 @@
-# main.py - Entry point for loading data from PostgreSQL into a Spark DataFrame
-# 1. Load configuration from YAML file
-# 2. Initialize SparkSession
-# 3. Read data from PostgreSQL into Spark DataFrame and display results
-
-import yaml
 from pyspark.sql import SparkSession
+from readConfig import readConfig
+from databaseConnector import databaseConnector
+from getSchemaTable import getSchemaTable
+from createSparkSchema import createSparkSchema
 from readDatabase import readDatabase
 
-try:
-    # Load database and table configuration from YAML file
-    with open("configDB.yaml", "r") as f:
-        config = yaml.safe_load(f)
-    print("Config loaded successfully")
-    print(f"Table: {config['table']['schema']}.{config['table']['name']}")
-    print(f"Database: {config['postgres']['dbname']} on {config['postgres']['host']}:{config['postgres']['port']}")
-except Exception as e:
-    print(f"Error loading configDB.yaml: {e}")
-    exit(1)
+def main():
+    """
+    Main function to run the entire process of reading data from the database.
+    Workflow: Config → Schema Info → Type Mapping → Spark Schema → Data Reading
+    """
+    # Initialize Spark Session
+    spark = SparkSession.builder \
+        .appName("DatabaseReader") \
+        .getOrCreate()
+    
+    try:
+        # Read config
+        config = readConfig()
+        print("Config loaded successfully.")
+        print(f"Database: {config['database']['typedb']}")
+        print(f"Tables: {[table['name'] for table in config['tables']]}")
+        
+        # Create database connection
+        jdbc_url, connection_properties = databaseConnector(config)
+        print(f"Connection created: {jdbc_url}")
+        
+        # Dictionary to store DataFrames
+        dataframes = {}
 
-try:
-    # Initialize SparkSession
-    spark = SparkSession.builder.appName("ReadPostgres").getOrCreate()
-    print("Spark session created")
+        # Process each table
+        for table_config in config['tables']:
+            table_name = table_config['name']
+            schema_name = table_config.get('schema', 'public')
+            
+            print(f"Processing {schema_name}.{table_name}")
+            
+            # Get schema info from database
+            table_schema = getSchemaTable(spark, jdbc_url, connection_properties, table_config)
+            print(f"Schema info retrieved for {len(table_schema)} columns:")
+            for col in table_schema:
+                print(f"- {col['name']}: {col['type']} (nullable: {col['nullable']}) (precision: {col['precision']}) (scale: {col['scale']}) (max_length: {col['max_length']})")
+            
+            # Create Spark schema from column info
+            spark_schema = createSparkSchema(table_schema)
+            print(f"Spark schema created with {len(spark_schema.fields)} fields:")
+            for field in spark_schema.fields:
+                print(f"- {field.name}: {field.dataType} (nullable: {field.nullable})")
+            
+            # Read data from database with defined schema
+            df = readDatabase(spark, jdbc_url, connection_properties, table_config, spark_schema=spark_schema)
+            row_count = df.count()
+            print(f"Data read successfully. Row count: {row_count}")
+            
+            # Store DataFrame in dictionary
+            dataframes[table_name] = df
+            print(f"Dataframes: {dataframes}")
+            
+            # Show sample data
+            print(f"Sample data {table_name}:")
+            df.show(3, truncate=False)
+        
+        print("Completed.")
+        print(f"Processed {len(dataframes)} tables:")
+        for table_name, df in dataframes.items():
+            print(f"- {table_name}: {df.count()} rows")
+        
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
     
-    # Read data from PostgreSQL into Spark DataFrame
-    df = readDatabase(spark, config)
-    print("Data loaded successfully")
-    
-    # Display schema and data
-    print("\nSchema:")
-    df.printSchema()
-    print("\nData:")
-    df.show()
-    
-except Exception as e:
-    print(f"Error running Spark job: {e}")
-    exit(1)
+    finally:
+        spark.stop()
+
+if __name__ == "__main__":
+    main()
