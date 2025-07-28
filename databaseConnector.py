@@ -12,7 +12,7 @@ def databaseConnector(config):
     
     # Mapping database types to JDBC URLs
     db_type_mapping = {
-        'postgres': {
+        'postgresql': {
             'driver': 'org.postgresql.Driver',
             'url_template': 'jdbc:postgresql://{host}:{port}/{dbname}'
         },
@@ -22,7 +22,7 @@ def databaseConnector(config):
         },
         'oracle': {
             'driver': 'oracle.jdbc.driver.OracleDriver',
-            'url_template': 'jdbc:oracle:thin:@{host}:{port}:{dbname}'
+            'url_template': 'jdbc:oracle:thin:@{host}:{port}/{dbname}'
         },
         'sqlserver': {
             'driver': 'com.microsoft.sqlserver.jdbc.SQLServerDriver',

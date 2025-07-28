@@ -1,5 +1,6 @@
 pyspark
 pyyaml
+jaydebeapi
 # JDBC drivers for different databases
 # postgresql-jdbc (included with pyspark)
 # mysql-connector-java (for MySQL)

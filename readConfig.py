@@ -1,6 +1,6 @@
 import yaml
 
-def readConfig(config_path="config.yaml"):
+def readConfig(config_path):
     """
     Read the config file and return a dictionary containing configuration information.
     Args:

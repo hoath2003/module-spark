@@ -1,14 +1,11 @@
 database:
-  typedb: postgres
+  typedb: postgresql
   dbname: financial_data
   user: postgres
   password: postgres
   host: localhost
   port: 5432
 tables:
-  - name: test_decimal
+  - name: accounts
     schema: public
-  - name: test_max_length
-    schema: public
-
-
+  
